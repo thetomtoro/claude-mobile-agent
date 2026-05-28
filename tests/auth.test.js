@@ -59,4 +59,15 @@ describe('authMiddleware', () => {
     expect(res.status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
+
+  test('returns 401 with error body when token is wrong', () => {
+    const res = makeRes();
+    const next = jest.fn();
+    middleware(makeReq({ token: 'wrong' }), res, next);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Unauthorized' });
+  });
+
+  test('throws if config.token is missing', () => {
+    expect(() => authMiddleware({})).toThrow('authMiddleware requires config.token');
+  });
 });
