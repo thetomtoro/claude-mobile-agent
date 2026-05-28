@@ -1,4 +1,5 @@
 const { WebSocketServer } = require('ws');
+const { validateToken } = require('./auth');
 
 class WsServer {
   constructor(config) {
@@ -14,7 +15,7 @@ class WsServer {
     this._wss.on('connection', (ws, req) => {
       const url = new URL(req.url, 'http://localhost');
       const token = url.searchParams.get('token');
-      if (token !== this.config.token) {
+      if (!validateToken(token, this.config.token)) {
         ws.close(4001, 'Unauthorized');
         return;
       }

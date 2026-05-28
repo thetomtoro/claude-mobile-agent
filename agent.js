@@ -12,11 +12,14 @@ const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), '
 const app = express();
 const server = http.createServer(app);
 
+// Serve PWA files unauthenticated (WebSocket and /info still require token)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Auth required for all other routes
 app.use(authMiddleware(config));
 app.get('/info', (_req, res) =>
   res.json({ name: config.name, platform: process.platform, port: config.port })
 );
-app.use(express.static(path.join(__dirname, 'public')));
 
 const wsServer = new WsServer(config);
 wsServer.attach(server);

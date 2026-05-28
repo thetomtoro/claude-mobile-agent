@@ -90,7 +90,7 @@ function createBubble(role) {
 }
 
 function appendToBubble(bubble, rawText) {
-  const text = rawText.replace(/\x1b\[[0-9;]*[mGKHF]/g, '');
+  const text = rawText.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '').replace(/\r/g, '');
   if (!text) return;
 
   // If text looks like code output (tabs, or 4+ leading spaces on a line)
@@ -119,7 +119,7 @@ function handleHistory(data) {
   if (!data) return;
   const bubble = createBubble('claude');
   const pre = document.createElement('pre');
-  pre.textContent = data.replace(/\x1b\[[0-9;]*[mGKHF]/g, '');
+  pre.textContent = data.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '').replace(/\r/g, '');
   bubble.appendChild(pre);
   currentClaudeBubble = null;
 }

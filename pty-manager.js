@@ -57,8 +57,7 @@ class PtyManager {
   }
 
   _appendToBuffer(data) {
-    const incoming = data.split('\n');
-    // Append to the last line if it didn't end with a newline
+    const incoming = data.replace(/\r/g, '').split('\n');
     if (this._lines.length > 0 && !this._lines[this._lines.length - 1].endsWith('\n')) {
       this._lines[this._lines.length - 1] += incoming[0];
       this._lines.push(...incoming.slice(1));
