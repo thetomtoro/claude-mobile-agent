@@ -1,0 +1,9 @@
+{
+  "name": "Claude Mobile",
+  "short_name": "Claude",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#1a1a1a",
+  "description": "Chat with Claude Code from your iPhone"
+}
