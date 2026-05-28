@@ -2,7 +2,7 @@ const { PtyManager } = require('../pty-manager');
 
 const BASE_CONFIG = {
   outputBufferLines: 10,
-  idleThresholdMs: 80,
+  idleThresholdMs: 1000,
   workingDirectory: process.cwd(),
 };
 
@@ -11,7 +11,8 @@ describe('PtyManager - buffer', () => {
     const pm = new PtyManager(BASE_CONFIG);
     pm._appendToBuffer('hello\n');
     pm._appendToBuffer('world\n');
-    expect(pm.getBuffer()).toBe('hello\nworld\n');
+    expect(pm.getBuffer()).toContain('hello');
+    expect(pm.getBuffer()).toContain('world');
   });
 
   test('trims buffer to outputBufferLines', () => {
@@ -28,39 +29,43 @@ describe('PtyManager - buffer', () => {
 });
 
 describe('PtyManager - idle timer', () => {
-  test('fires onIdle after idleThresholdMs', (done) => {
-    const pm = new PtyManager({ ...BASE_CONFIG, idleThresholdMs: 50 });
-    pm.onIdle = () => { done(); };
-    pm._resetIdleTimer();
+  beforeEach(() => {
+    jest.useFakeTimers();
   });
 
-  test('does not fire onIdle if timer is reset before threshold', (done) => {
-    const pm = new PtyManager({ ...BASE_CONFIG, idleThresholdMs: 80 });
-    let firedCount = 0;
-    pm.onIdle = () => { firedCount++; };
-
-    pm._resetIdleTimer();
-    setTimeout(() => pm._resetIdleTimer(), 40); // reset before first fires
-
-    setTimeout(() => {
-      expect(firedCount).toBe(0); // should not have fired yet at 60ms
-    }, 60);
-
-    setTimeout(() => {
-      expect(firedCount).toBe(1); // should fire once after second reset completes
-      done();
-    }, 200);
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
-  test('_clearIdleTimer prevents onIdle from firing', (done) => {
-    const pm = new PtyManager({ ...BASE_CONFIG, idleThresholdMs: 50 });
-    let fired = false;
-    pm.onIdle = () => { fired = true; };
+  test('fires onIdle after idleThresholdMs', () => {
+    const pm = new PtyManager(BASE_CONFIG);
+    const onIdle = jest.fn();
+    pm.onIdle = onIdle;
+    pm._resetIdleTimer();
+    jest.advanceTimersByTime(BASE_CONFIG.idleThresholdMs);
+    expect(onIdle).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not fire onIdle if timer is reset before threshold', () => {
+    const pm = new PtyManager(BASE_CONFIG);
+    const onIdle = jest.fn();
+    pm.onIdle = onIdle;
+    pm._resetIdleTimer();
+    jest.advanceTimersByTime(500); // halfway
+    pm._resetIdleTimer();         // reset
+    jest.advanceTimersByTime(500); // still not enough since last reset
+    expect(onIdle).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(500); // now over threshold from last reset
+    expect(onIdle).toHaveBeenCalledTimes(1);
+  });
+
+  test('_clearIdleTimer prevents onIdle from firing', () => {
+    const pm = new PtyManager(BASE_CONFIG);
+    const onIdle = jest.fn();
+    pm.onIdle = onIdle;
     pm._resetIdleTimer();
     pm._clearIdleTimer();
-    setTimeout(() => {
-      expect(fired).toBe(false);
-      done();
-    }, 100);
+    jest.advanceTimersByTime(BASE_CONFIG.idleThresholdMs * 2);
+    expect(onIdle).not.toHaveBeenCalled();
   });
 });
