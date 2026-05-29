@@ -16,7 +16,10 @@ class PtyManager {
   }
 
   start() {
-    this._pty = pty.spawn('claude', [], {
+    const isWin = process.platform === 'win32';
+    const command = isWin ? 'cmd.exe' : 'claude';
+    const args = isWin ? ['/c', 'claude'] : [];
+    this._pty = pty.spawn(command, args, {
       name: 'xterm-color',
       cols: 120,
       rows: 30,
