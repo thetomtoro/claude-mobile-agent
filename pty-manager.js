@@ -47,6 +47,10 @@ class PtyManager {
     this._pty.write(input);
   }
 
+  resize(cols, rows) {
+    if (this._pty) this._pty.resize(cols, rows);
+  }
+
   getBuffer() {
     return this._lines.join('\n');
   }

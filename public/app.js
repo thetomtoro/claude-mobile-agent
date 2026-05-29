@@ -48,7 +48,10 @@ function initTerminal() {
   term.open(document.getElementById('terminal'));
   fitAddon.fit();
 
-  window.addEventListener('resize', () => fitAddon.fit());
+  window.addEventListener('resize', () => {
+    fitAddon.fit();
+    sendResize();
+  });
 }
 
 // ─── Token ────────────────────────────────────────────────────────────────────
@@ -98,6 +101,12 @@ function handleExit(code) {
 }
 
 // ─── WebSocket ────────────────────────────────────────────────────────────────
+function sendResize() {
+  if (ws && ws.readyState === WebSocket.OPEN && term) {
+    ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+  }
+}
+
 function connect() {
   if (ws) {
     ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null;
@@ -119,7 +128,10 @@ function connect() {
 
   ws = new WebSocket(`ws://${device.ip}:${port}/?token=${encodeURIComponent(token)}`);
 
-  ws.onopen = () => setStatus('connected');
+  ws.onopen = () => {
+    setStatus('connected');
+    sendResize();
+  };
 
   ws.onmessage = (event) => {
     try {

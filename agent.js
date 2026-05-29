@@ -52,6 +52,7 @@ wsServer.onMessage = (raw) => {
   try {
     const msg = JSON.parse(raw);
     if (msg.type === 'input') ptyManager.write(msg.data);
+    else if (msg.type === 'resize') ptyManager.resize(msg.cols, msg.rows);
   } catch { /* ignore malformed */ }
 };
 
