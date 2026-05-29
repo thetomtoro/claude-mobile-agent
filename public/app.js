@@ -1,21 +1,20 @@
 // ─── Config ──────────────────────────────────────────────────────────────────
-const STORAGE_KEY      = 'claude-mobile-devices';
-const TOKEN_KEY        = 'claude-mobile-token';
-const ACTIVE_IDX_KEY   = 'claude-mobile-active';
-const DEFAULT_PORT     = 3000;
-const RECONNECT_DELAY  = 2000;
+const STORAGE_KEY    = 'claude-mobile-devices';
+const TOKEN_KEY      = 'claude-mobile-token';
+const ACTIVE_IDX_KEY = 'claude-mobile-active';
+const DEFAULT_PORT   = 3000;
+const RECONNECT_DELAY = 2000;
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let ws = null;
 let reconnectTimer = null;
-let currentClaudeBubble = null;
-let isUserScrolling = false;
+let term = null;
+let fitAddon = null;
 let devices = [];
 let activeIndex = 0;
 let token = '';
 
 // ─── DOM ──────────────────────────────────────────────────────────────────────
-const chat       = document.getElementById('chat');
 const inputEl    = document.getElementById('input');
 const sendBtn    = document.getElementById('send-btn');
 const deviceBtn  = document.getElementById('device-btn');
@@ -26,6 +25,31 @@ const addForm    = document.getElementById('add-device-form');
 const addIpEl    = document.getElementById('add-device-ip');
 const addNameEl  = document.getElementById('add-device-name');
 const closeModal = document.getElementById('close-modal');
+
+// ─── Terminal ─────────────────────────────────────────────────────────────────
+function initTerminal() {
+  term = new Terminal({
+    theme: {
+      background: '#1a1a1a',
+      foreground: '#f0f0f0',
+      cursor: '#0a84ff',
+      selectionBackground: 'rgba(10,132,255,0.3)',
+    },
+    fontFamily: "'Menlo', 'Monaco', 'Consolas', monospace",
+    fontSize: 13,
+    lineHeight: 1.4,
+    scrollback: 2000,
+    convertEol: true,
+    cursorBlink: true,
+  });
+
+  fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(document.getElementById('terminal'));
+  fitAddon.fit();
+
+  window.addEventListener('resize', () => fitAddon.fit());
+}
 
 // ─── Token ────────────────────────────────────────────────────────────────────
 function loadToken() {
@@ -59,96 +83,17 @@ function setStatus(state) {
   statusDot.className = `dot dot--${state}`;
 }
 
-// ─── Scroll ───────────────────────────────────────────────────────────────────
-chat.addEventListener('scroll', () => {
-  const atBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 60;
-  isUserScrolling = !atBottom;
-});
-
-function scrollToBottom() {
-  if (!isUserScrolling) chat.scrollTop = chat.scrollHeight;
-}
-
-// ─── Bubbles ──────────────────────────────────────────────────────────────────
-function createBubble(role) {
-  const wrapper = document.createElement('div');
-  wrapper.className = `bubble-wrapper bubble-wrapper--${role}`;
-
-  if (role === 'claude') {
-    const label = document.createElement('div');
-    label.className = 'bubble-label';
-    label.textContent = 'Claude';
-    wrapper.appendChild(label);
-  }
-
-  const bubble = document.createElement('div');
-  bubble.className = `bubble bubble--${role}`;
-  wrapper.appendChild(bubble);
-  chat.appendChild(wrapper);
-  scrollToBottom();
-  return bubble;
-}
-
-function stripAnsi(s) {
-  return s
-    .replace(/\x1b\[[\d;]*H/g, '')                      // absolute cursor position → strip (avoids blank lines)
-    .replace(/\x1b\[[\d;]*[GCc]/g, ' ')                 // cursor-to-column / cursor-right → space (word gaps)
-    .replace(/\x1b\[[?!><=]*[\d;]*[a-zA-Z]/g, '')       // all other CSI (colors, modes, movement)
-    .replace(/\x1b\][^\x07\x1b]*\x07/g, '')              // OSC sequences
-    .replace(/\x1b[^[\]]/g, '')                           // ESC + single char
-    .replace(/\r/g, '')                                   // carriage returns
-    .replace(/ {2,}/g, ' ')                               // collapse extra spaces
-    .replace(/\n{3,}/g, '\n\n');                          // collapse excessive blank lines
-}
-
-function appendToBubble(bubble, rawText) {
-  const text = stripAnsi(rawText);
-  if (!text) return;
-
-  // If text looks like code output (tabs, or 4+ leading spaces on a line)
-  const looksLikeCode = /^\s{4}|\t/.test(text);
-  let pre = bubble.querySelector('pre');
-
-  if (looksLikeCode || pre) {
-    if (!pre) {
-      pre = document.createElement('pre');
-      bubble.appendChild(pre);
-    }
-    pre.textContent += text;
-  } else {
-    let span = bubble.querySelector('span:last-child');
-    if (!span) {
-      span = document.createElement('span');
-      bubble.appendChild(span);
-    }
-    span.textContent += text;
-  }
-  scrollToBottom();
-}
-
 // ─── Message handlers ─────────────────────────────────────────────────────────
 function handleHistory(data) {
-  if (!data) return;
-  const bubble = createBubble('claude');
-  const pre = document.createElement('pre');
-  pre.textContent = stripAnsi(data);
-  bubble.appendChild(pre);
-  currentClaudeBubble = null;
+  if (data && term) term.write(data);
 }
 
 function handleOutput(data) {
-  if (!currentClaudeBubble) currentClaudeBubble = createBubble('claude');
-  appendToBubble(currentClaudeBubble, data);
-}
-
-function handleIdle() {
-  currentClaudeBubble = null;
+  if (term) term.write(data);
 }
 
 function handleExit(code) {
-  currentClaudeBubble = null;
-  const bubble = createBubble('system');
-  bubble.textContent = `Session ended (exit ${code})`;
+  if (term) term.writeln(`\r\n\x1b[33m[Session ended (exit ${code})]\x1b[0m`);
   setStatus('disconnected');
 }
 
@@ -181,7 +126,6 @@ function connect() {
       const msg = JSON.parse(event.data);
       if      (msg.type === 'history') handleHistory(msg.data);
       else if (msg.type === 'output')  handleOutput(msg.data);
-      else if (msg.type === 'idle')    handleIdle();
       else if (msg.type === 'exit')    handleExit(msg.code);
     } catch { /* ignore */ }
   };
@@ -196,11 +140,6 @@ function connect() {
 
 function sendInput(text) {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
-  const bubble = createBubble('user');
-  bubble.textContent = text;
-  currentClaudeBubble = null;
-  isUserScrolling = false;
-  scrollToBottom();
   ws.send(JSON.stringify({ type: 'input', data: text + '\n' }));
 }
 
@@ -255,8 +194,7 @@ function renderDeviceList() {
       activeIndex = i;
       saveState();
       modal.classList.add('hidden');
-      chat.innerHTML = '';
-      currentClaudeBubble = null;
+      if (term) term.reset();
       connect();
     });
     deviceList.appendChild(li);
@@ -290,15 +228,19 @@ addForm.addEventListener('submit', async (e) => {
   addIpEl.value = '';
   addNameEl.value = '';
   modal.classList.add('hidden');
-  chat.innerHTML = '';
-  currentClaudeBubble = null;
+  if (term) term.reset();
   connect();
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 token = loadToken();
 devices = loadDevices();
-activeIndex = parseInt(localStorage.getItem(ACTIVE_IDX_KEY) || '0', 10);
+activeIndex = Math.min(
+  parseInt(localStorage.getItem(ACTIVE_IDX_KEY) || '0', 10),
+  Math.max(0, devices.length - 1)
+);
+
+initTerminal();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});

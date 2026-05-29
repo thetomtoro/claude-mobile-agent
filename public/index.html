@@ -7,6 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Claude Mobile</title>
   <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -15,7 +16,7 @@
       <button id="device-btn" class="device-name">Connecting...</button>
       <span id="status-dot" class="dot dot--connecting"></span>
     </header>
-    <main id="chat"></main>
+    <main id="terminal"></main>
     <footer id="footer">
       <textarea id="input" placeholder="Type a message..." rows="1"></textarea>
       <button id="send-btn">&#9654;</button>
@@ -35,6 +36,8 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
