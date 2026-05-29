@@ -89,8 +89,16 @@ function createBubble(role) {
   return bubble;
 }
 
+function stripAnsi(s) {
+  return s
+    .replace(/\x1b\[[?!><=]*[\d;]*[a-zA-Z]/g, '')  // CSI sequences (incl. private ?/>/<)
+    .replace(/\x1b\][^\x07\x1b]*\x07/g, '')          // OSC sequences
+    .replace(/\x1b[^[\]]/g, '')                       // ESC + single char
+    .replace(/\r/g, '');                              // carriage returns
+}
+
 function appendToBubble(bubble, rawText) {
-  const text = rawText.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '').replace(/\r/g, '');
+  const text = stripAnsi(rawText);
   if (!text) return;
 
   // If text looks like code output (tabs, or 4+ leading spaces on a line)
@@ -119,7 +127,7 @@ function handleHistory(data) {
   if (!data) return;
   const bubble = createBubble('claude');
   const pre = document.createElement('pre');
-  pre.textContent = data.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '').replace(/\r/g, '');
+  pre.textContent = stripAnsi(data);
   bubble.appendChild(pre);
   currentClaudeBubble = null;
 }
