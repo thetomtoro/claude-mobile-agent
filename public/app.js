@@ -112,6 +112,7 @@ function removeThinking() {
 // ─── Message handlers ─────────────────────────────────────────────────────────
 function handleStart() {
   showThinking();
+  sendBtn.disabled = true;
 }
 
 function handleChunk(data) {
@@ -232,6 +233,22 @@ function sendInput(text) {
   scrollToBottom();
   ws.send(JSON.stringify({ type: 'input', data: text }));
 }
+
+// ─── Re-sync on foreground ──────────────────────────────────────────────────
+// iOS suspends a backgrounded PWA's JS and may silently kill or freeze the
+// WebSocket, so trailing chunks and the final `done` arrive at a socket nobody
+// is listening on and are lost. A frozen socket can still report OPEN, so we
+// can't trust readyState — when we return to the foreground we force a fresh
+// connection. The server replays the current conversation on connect, so the
+// screen catches up to Claude's full response automatically.
+function resync() {
+  if (!activeDevice()) return;
+  if (document.visibilityState !== 'visible') return;
+  connect();
+}
+
+document.addEventListener('visibilitychange', resync);
+window.addEventListener('pageshow', (e) => { if (e.persisted) resync(); });
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 sendBtn.addEventListener('click', () => {

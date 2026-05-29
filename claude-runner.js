@@ -62,6 +62,10 @@ class ClaudeRunner {
     return this._current !== null;
   }
 
+  get sessionId() {
+    return this._sessionId;
+  }
+
   cancel() {
     if (this._current) {
       this._current.kill();
