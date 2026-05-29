@@ -91,14 +91,11 @@ function createBubble(role) {
 
 function stripAnsi(s) {
   return s
-    .replace(/\x1b\[[\d;]*H/g, '\n')                   // cursor position → newline
-    .replace(/\x1b\[[\d;]*[ABCDEFGJKST]/g, ' ')        // cursor movement → space
-    .replace(/\x1b\[[?!><=]*[\d;]*[a-zA-Z]/g, '')      // other CSI (colors, modes)
+    .replace(/\x1b\[[?!><=]*[\d;]*[a-zA-Z]/g, '')      // all CSI sequences (colors, cursor, modes)
     .replace(/\x1b\][^\x07\x1b]*\x07/g, '')             // OSC sequences
     .replace(/\x1b[^[\]]/g, '')                          // ESC + single char
     .replace(/\r/g, '')                                  // carriage returns
-    .replace(/ {2,}/g, ' ')                              // collapse extra spaces
-    .replace(/\n{3,}/g, '\n\n');                         // collapse excessive newlines
+    .replace(/\n{3,}/g, '\n\n');                         // collapse excessive blank lines
 }
 
 function appendToBubble(bubble, rawText) {
