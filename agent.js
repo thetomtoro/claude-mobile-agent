@@ -47,6 +47,10 @@ wsServer.onMessage = (raw) => {
     } else if (msg.type === 'cancel') {
       claude.cancel();
       wsServer.broadcast(JSON.stringify({ type: 'cancelled' }));
+    } else if (msg.type === 'new-session') {
+      claude.cancel();
+      claude.resetSession();
+      wsServer.broadcast(JSON.stringify({ type: 'session-reset' }));
     }
   } catch { /* ignore malformed */ }
 };

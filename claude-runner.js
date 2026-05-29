@@ -1,12 +1,30 @@
 const { spawn } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
+const SESSION_FILE = path.join(__dirname, '.phone-session-id');
+
+function loadOrCreateSessionId() {
+  try {
+    const existing = fs.readFileSync(SESSION_FILE, 'utf8').trim();
+    if (existing) return existing;
+  } catch { /* file doesn't exist yet */ }
+
+  const id = crypto.randomUUID();
+  fs.writeFileSync(SESSION_FILE, id);
+  return id;
+}
 
 class ClaudeRunner {
   constructor(config) {
     this.config = {
       workingDirectory: config.workingDirectory || process.cwd(),
     };
-    this._hasSession = false;
+    this._sessionId = loadOrCreateSessionId();
+    this._hasStarted = false;
     this._current = null;
+    console.log(`[claude] phone session id: ${this._sessionId}`);
   }
 
   isBusy() {
@@ -20,6 +38,13 @@ class ClaudeRunner {
     }
   }
 
+  resetSession() {
+    this._sessionId = crypto.randomUUID();
+    fs.writeFileSync(SESSION_FILE, this._sessionId);
+    this._hasStarted = false;
+    console.log(`[claude] new session: ${this._sessionId}`);
+  }
+
   send(prompt, { onChunk, onDone, onError } = {}) {
     if (this._current) {
       if (onError) onError(new Error('Claude is still responding to a previous message'));
@@ -28,7 +53,11 @@ class ClaudeRunner {
 
     const isWin = process.platform === 'win32';
     const claudeArgs = ['-p', prompt];
-    if (this._hasSession) claudeArgs.push('--continue');
+    if (this._hasStarted) {
+      claudeArgs.push('--resume', this._sessionId);
+    } else {
+      claudeArgs.push('--session-id', this._sessionId);
+    }
 
     const command = isWin ? 'cmd.exe' : 'claude';
     const args = isWin ? ['/c', 'claude', ...claudeArgs] : claudeArgs;
@@ -50,7 +79,7 @@ class ClaudeRunner {
     child.on('close', (code) => {
       this._current = null;
       if (code === 0) {
-        this._hasSession = true;
+        this._hasStarted = true;
         if (onDone) onDone();
       } else {
         if (onError) onError(new Error(`claude exited with code ${code}`));

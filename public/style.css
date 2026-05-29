@@ -52,6 +52,30 @@ html, body {
 }
 .device-name:active { background: var(--border); }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#new-chat-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-family: inherit;
+}
+#new-chat-btn:active { background: var(--border); }
+
 .dot {
   width: 10px;
   height: 10px;

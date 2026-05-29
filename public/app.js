@@ -20,6 +20,7 @@ const chat       = document.getElementById('chat');
 const inputEl    = document.getElementById('input');
 const sendBtn    = document.getElementById('send-btn');
 const deviceBtn  = document.getElementById('device-btn');
+const newChatBtn = document.getElementById('new-chat-btn');
 const statusDot  = document.getElementById('status-dot');
 const modal      = document.getElementById('device-modal');
 const deviceList = document.getElementById('device-list');
@@ -145,6 +146,16 @@ function handleCancelled() {
   sendBtn.disabled = false;
 }
 
+function handleSessionReset() {
+  removeThinking();
+  currentClaudeBubble = null;
+  chat.innerHTML = '';
+  const bubble = createBubble('system');
+  bubble.textContent = 'New conversation started';
+  setStatus('connected');
+  sendBtn.disabled = false;
+}
+
 // ─── WebSocket ────────────────────────────────────────────────────────────────
 function connect() {
   if (ws) {
@@ -177,6 +188,7 @@ function connect() {
       else if (msg.type === 'done')      handleDone();
       else if (msg.type === 'error')     handleError(msg.message);
       else if (msg.type === 'cancelled') handleCancelled();
+      else if (msg.type === 'session-reset') handleSessionReset();
     } catch { /* ignore */ }
   };
 
@@ -218,6 +230,13 @@ inputEl.addEventListener('keydown', (e) => {
 inputEl.addEventListener('input', () => {
   inputEl.style.height = 'auto';
   inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+});
+
+// ─── New chat ─────────────────────────────────────────────────────────────────
+newChatBtn.addEventListener('click', () => {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (!confirm('Start a new conversation? Current chat will be cleared.')) return;
+  ws.send(JSON.stringify({ type: 'new-session' }));
 });
 
 // ─── Device modal ─────────────────────────────────────────────────────────────
