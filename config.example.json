@@ -1,9 +1,9 @@
 {
-  "name": "Tommy's PC",
+  "name": "My PC",
   "port": 3000,
-  "token": "replace-with-a-random-string",
-  "ntfyTopic": "tommy-claude-replace-with-random-suffix",
+  "token": "replace-with-a-long-random-string",
+  "ntfyTopic": "replace-with-a-unique-secret-topic",
   "idleThresholdMs": 3000,
   "outputBufferLines": 500,
-  "workingDirectory": "C:\\Users\\Tommy Ong\\your-project"
+  "workingDirectory": "C:\\Users\\you\\your-project"
 }
