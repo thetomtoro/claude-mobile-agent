@@ -152,7 +152,7 @@ function connect() {
 
 function sendInput(text) {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
-  ws.send(JSON.stringify({ type: 'input', data: text + '\n' }));
+  ws.send(JSON.stringify({ type: 'input', data: text + '\r' }));
 }
 
 // ─── Input ────────────────────────────────────────────────────────────────────
