@@ -6,6 +6,7 @@ const { ClaudeRunner } = require('./claude-runner');
 const { WsServer } = require('./ws-server');
 const { sendNotification } = require('./notify');
 const { authMiddleware } = require('./auth');
+const { listSessions, loadSessionMessages } = require('./session-store');
 
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
 
@@ -17,6 +18,7 @@ app.use(authMiddleware(config));
 app.get('/info', (_req, res) =>
   res.json({ name: config.name, platform: process.platform, port: config.port })
 );
+app.get('/sessions', (_req, res) => res.json(listSessions()));
 
 const wsServer = new WsServer(config);
 wsServer.attach(server);
@@ -51,6 +53,19 @@ wsServer.onMessage = (raw) => {
       claude.cancel();
       claude.resetSession();
       wsServer.broadcast(JSON.stringify({ type: 'session-reset' }));
+    } else if (msg.type === 'switch-session') {
+      claude.cancel();
+      const loaded = loadSessionMessages(msg.id);
+      if (!loaded) {
+        wsServer.broadcast(JSON.stringify({ type: 'error', message: 'Session not found' }));
+        return;
+      }
+      claude.setSession(msg.id);
+      wsServer.broadcast(JSON.stringify({
+        type: 'session-loaded',
+        project: loaded.project,
+        messages: loaded.messages,
+      }));
     }
   } catch { /* ignore malformed */ }
 };

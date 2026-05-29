@@ -21,6 +21,10 @@ const inputEl    = document.getElementById('input');
 const sendBtn    = document.getElementById('send-btn');
 const deviceBtn  = document.getElementById('device-btn');
 const newChatBtn = document.getElementById('new-chat-btn');
+const sessionsBtn   = document.getElementById('sessions-btn');
+const sessionsModal = document.getElementById('sessions-modal');
+const sessionsList  = document.getElementById('sessions-list');
+const closeSessions = document.getElementById('close-sessions');
 const statusDot  = document.getElementById('status-dot');
 const modal      = document.getElementById('device-modal');
 const deviceList = document.getElementById('device-list');
@@ -156,6 +160,23 @@ function handleSessionReset() {
   sendBtn.disabled = false;
 }
 
+function handleSessionLoaded({ project, messages }) {
+  removeThinking();
+  currentClaudeBubble = null;
+  chat.innerHTML = '';
+  const header = createBubble('system');
+  header.textContent = `Resumed: ${project || 'session'}`;
+  for (const m of messages) {
+    const role = m.role === 'claude' ? 'claude' : 'user';
+    const bubble = createBubble(role);
+    bubble.textContent = m.text;
+  }
+  isUserScrolling = false;
+  scrollToBottom();
+  setStatus('connected');
+  sendBtn.disabled = false;
+}
+
 // ─── WebSocket ────────────────────────────────────────────────────────────────
 function connect() {
   if (ws) {
@@ -188,7 +209,8 @@ function connect() {
       else if (msg.type === 'done')      handleDone();
       else if (msg.type === 'error')     handleError(msg.message);
       else if (msg.type === 'cancelled') handleCancelled();
-      else if (msg.type === 'session-reset') handleSessionReset();
+      else if (msg.type === 'session-reset')  handleSessionReset();
+      else if (msg.type === 'session-loaded') handleSessionLoaded(msg);
     } catch { /* ignore */ }
   };
 
@@ -230,6 +252,72 @@ inputEl.addEventListener('keydown', (e) => {
 inputEl.addEventListener('input', () => {
   inputEl.style.height = 'auto';
   inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+});
+
+// ─── Sessions ─────────────────────────────────────────────────────────────────
+function formatRelativeTime(ms) {
+  const diff = Date.now() - ms;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(ms).toLocaleDateString();
+}
+
+async function openSessionsModal() {
+  const device = activeDevice();
+  if (!device) return;
+  const port = device.port || DEFAULT_PORT;
+
+  sessionsList.innerHTML = '<li style="color:var(--text-muted);cursor:default">Loading…</li>';
+  sessionsModal.classList.remove('hidden');
+
+  try {
+    const res = await fetch(
+      `http://${device.ip}:${port}/sessions?token=${encodeURIComponent(token)}`
+    );
+    if (!res.ok) throw new Error('Failed to load');
+    const sessions = await res.json();
+
+    sessionsList.innerHTML = '';
+    if (sessions.length === 0) {
+      const li = document.createElement('li');
+      li.textContent = 'No sessions found';
+      li.style.cursor = 'default';
+      sessionsList.appendChild(li);
+      return;
+    }
+    for (const s of sessions) {
+      const li = document.createElement('li');
+      const proj = document.createElement('div');
+      proj.className = 'session-project';
+      proj.textContent = s.project;
+      const preview = document.createElement('div');
+      preview.className = 'session-preview';
+      preview.textContent = s.preview || '(empty)';
+      const time = document.createElement('div');
+      time.className = 'session-time';
+      time.textContent = formatRelativeTime(s.lastModified);
+      li.append(proj, preview, time);
+      li.addEventListener('click', () => {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify({ type: 'switch-session', id: s.id }));
+        sessionsModal.classList.add('hidden');
+      });
+      sessionsList.appendChild(li);
+    }
+  } catch (err) {
+    sessionsList.innerHTML = `<li style="color:var(--red);cursor:default">Error: ${err.message}</li>`;
+  }
+}
+
+sessionsBtn.addEventListener('click', openSessionsModal);
+closeSessions.addEventListener('click', () => sessionsModal.classList.add('hidden'));
+sessionsModal.addEventListener('click', (e) => {
+  if (e.target === sessionsModal) sessionsModal.classList.add('hidden');
 });
 
 // ─── New chat ─────────────────────────────────────────────────────────────────

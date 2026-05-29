@@ -58,11 +58,11 @@ html, body {
   gap: 12px;
 }
 
-#new-chat-btn {
+#new-chat-btn, #sessions-btn {
   background: none;
   border: 1px solid var(--border);
   color: var(--text);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   width: 28px;
@@ -74,7 +74,63 @@ html, body {
   padding: 0;
   font-family: inherit;
 }
-#new-chat-btn:active { background: var(--border); }
+#new-chat-btn:active, #sessions-btn:active { background: var(--border); }
+
+.modal-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: -8px;
+}
+
+#sessions-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+#sessions-list li {
+  padding: 10px 12px;
+  background: var(--bg);
+  border-radius: 10px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+#sessions-list li:active { border-color: var(--user-bg); }
+.session-project {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-preview {
+  font-size: 14px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+#close-sessions {
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 15px;
+  cursor: pointer;
+  font-family: inherit;
+}
 
 .dot {
   width: 10px;

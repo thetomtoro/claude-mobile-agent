@@ -14,6 +14,7 @@
     <header id="header">
       <button id="device-btn" class="device-name">Connecting...</button>
       <div class="header-right">
+        <button id="sessions-btn" title="Sessions">☰</button>
         <button id="new-chat-btn" title="New chat">＋</button>
         <span id="status-dot" class="dot dot--connecting"></span>
       </div>
@@ -23,6 +24,15 @@
       <textarea id="input" placeholder="Type a message..." rows="1"></textarea>
       <button id="send-btn">&#9654;</button>
     </footer>
+  </div>
+
+  <div id="sessions-modal" class="modal hidden">
+    <div class="modal-inner">
+      <h2>Sessions</h2>
+      <p class="modal-hint">Pick a conversation to resume</p>
+      <ul id="sessions-list"></ul>
+      <button id="close-sessions">Cancel</button>
+    </div>
   </div>
 
   <div id="device-modal" class="modal hidden">

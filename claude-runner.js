@@ -45,6 +45,12 @@ class ClaudeRunner {
     console.log(`[claude] new session: ${this._sessionId}`);
   }
 
+  setSession(sessionId) {
+    this._sessionId = sessionId;
+    this._hasStarted = true;  // existing session, use --resume
+    console.log(`[claude] switched to session: ${sessionId}`);
+  }
+
   send(prompt, { onChunk, onDone, onError } = {}) {
     if (this._current) {
       if (onError) onError(new Error('Claude is still responding to a previous message'));
