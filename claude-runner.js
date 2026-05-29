@@ -89,7 +89,11 @@ class ClaudeRunner {
     }
 
     const isWin = process.platform === 'win32';
-    const claudeArgs = ['-p', prompt, ...this._addDirArgs];
+    const claudeArgs = [
+      '-p', prompt,
+      '--permission-mode', 'bypassPermissions',
+      ...this._addDirArgs,
+    ];
     if (this._hasStarted) {
       claudeArgs.push('--resume', this._sessionId);
     } else {
