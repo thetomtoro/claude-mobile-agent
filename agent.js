@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
-const { PtyManager } = require('./pty-manager');
+const { ClaudeRunner } = require('./claude-runner');
 const { WsServer } = require('./ws-server');
 const { sendNotification } = require('./notify');
 const { authMiddleware } = require('./auth');
@@ -12,10 +12,7 @@ const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), '
 const app = express();
 const server = http.createServer(app);
 
-// Serve PWA files unauthenticated (WebSocket and /info still require token)
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Auth required for all other routes
 app.use(authMiddleware(config));
 app.get('/info', (_req, res) =>
   res.json({ name: config.name, platform: process.platform, port: config.port })
@@ -24,39 +21,35 @@ app.get('/info', (_req, res) =>
 const wsServer = new WsServer(config);
 wsServer.attach(server);
 
-const ptyManager = new PtyManager(config);
-
-ptyManager.onOutput = (data) => {
-  wsServer.broadcast(JSON.stringify({ type: 'output', data }));
-};
-
-ptyManager.onIdle = () => {
-  sendNotification(config.ntfyTopic, config.name, 'Claude is waiting for input');
-  wsServer.broadcast(JSON.stringify({ type: 'idle' }));
-};
-
-ptyManager.onExit = (code) => {
-  const msg = code === 0
-    ? `Session finished on ${config.name}`
-    : `Claude crashed on ${config.name} (exit ${code})`;
-  sendNotification(config.ntfyTopic, config.name, msg);
-  wsServer.broadcast(JSON.stringify({ type: 'exit', code }));
-};
-
-wsServer.onConnection = (ws) => {
-  const history = ptyManager.getBuffer();
-  if (history) ws.send(JSON.stringify({ type: 'history', data: history }));
-};
+const claude = new ClaudeRunner(config);
 
 wsServer.onMessage = (raw) => {
   try {
     const msg = JSON.parse(raw);
-    if (msg.type === 'input') ptyManager.write(msg.data);
-    else if (msg.type === 'resize') ptyManager.resize(msg.cols, msg.rows);
+    if (msg.type === 'input') {
+      const prompt = String(msg.data || '').trim();
+      if (!prompt) return;
+
+      wsServer.broadcast(JSON.stringify({ type: 'start' }));
+
+      claude.send(prompt, {
+        onChunk: (chunk) => {
+          wsServer.broadcast(JSON.stringify({ type: 'chunk', data: chunk }));
+        },
+        onDone: () => {
+          wsServer.broadcast(JSON.stringify({ type: 'done' }));
+          sendNotification(config.ntfyTopic, config.name, 'Claude is ready');
+        },
+        onError: (err) => {
+          wsServer.broadcast(JSON.stringify({ type: 'error', message: err.message }));
+        },
+      });
+    } else if (msg.type === 'cancel') {
+      claude.cancel();
+      wsServer.broadcast(JSON.stringify({ type: 'cancelled' }));
+    }
   } catch { /* ignore malformed */ }
 };
-
-ptyManager.start();
 
 server.listen(config.port, '0.0.0.0', () => {
   console.log(`\nClaude Mobile Agent started`);

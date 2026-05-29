@@ -8,13 +8,15 @@ const RECONNECT_DELAY = 2000;
 // ─── State ────────────────────────────────────────────────────────────────────
 let ws = null;
 let reconnectTimer = null;
-let term = null;
-let fitAddon = null;
+let currentClaudeBubble = null;
+let thinkingBubble = null;
+let isUserScrolling = false;
 let devices = [];
 let activeIndex = 0;
 let token = '';
 
 // ─── DOM ──────────────────────────────────────────────────────────────────────
+const chat       = document.getElementById('chat');
 const inputEl    = document.getElementById('input');
 const sendBtn    = document.getElementById('send-btn');
 const deviceBtn  = document.getElementById('device-btn');
@@ -25,34 +27,6 @@ const addForm    = document.getElementById('add-device-form');
 const addIpEl    = document.getElementById('add-device-ip');
 const addNameEl  = document.getElementById('add-device-name');
 const closeModal = document.getElementById('close-modal');
-
-// ─── Terminal ─────────────────────────────────────────────────────────────────
-function initTerminal() {
-  term = new Terminal({
-    theme: {
-      background: '#1a1a1a',
-      foreground: '#f0f0f0',
-      cursor: '#0a84ff',
-      selectionBackground: 'rgba(10,132,255,0.3)',
-    },
-    fontFamily: "'Menlo', 'Monaco', 'Consolas', monospace",
-    fontSize: 13,
-    lineHeight: 1.4,
-    scrollback: 2000,
-    convertEol: true,
-    cursorBlink: true,
-  });
-
-  fitAddon = new FitAddon.FitAddon();
-  term.loadAddon(fitAddon);
-  term.open(document.getElementById('terminal'));
-  fitAddon.fit();
-
-  window.addEventListener('resize', () => {
-    fitAddon.fit();
-    sendResize();
-  });
-}
 
 // ─── Token ────────────────────────────────────────────────────────────────────
 function loadToken() {
@@ -86,27 +60,92 @@ function setStatus(state) {
   statusDot.className = `dot dot--${state}`;
 }
 
+// ─── Scroll ───────────────────────────────────────────────────────────────────
+chat.addEventListener('scroll', () => {
+  const atBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 60;
+  isUserScrolling = !atBottom;
+});
+
+function scrollToBottom() {
+  if (!isUserScrolling) chat.scrollTop = chat.scrollHeight;
+}
+
+// ─── Bubbles ──────────────────────────────────────────────────────────────────
+function createBubble(role) {
+  const wrapper = document.createElement('div');
+  wrapper.className = `bubble-wrapper bubble-wrapper--${role}`;
+
+  if (role === 'claude') {
+    const label = document.createElement('div');
+    label.className = 'bubble-label';
+    label.textContent = 'Claude';
+    wrapper.appendChild(label);
+  }
+
+  const bubble = document.createElement('div');
+  bubble.className = `bubble bubble--${role}`;
+  wrapper.appendChild(bubble);
+  chat.appendChild(wrapper);
+  scrollToBottom();
+  return bubble;
+}
+
+function showThinking() {
+  removeThinking();
+  thinkingBubble = createBubble('claude');
+  thinkingBubble.innerHTML = '<div class="thinking-dots"><span></span><span></span><span></span></div>';
+  setStatus('thinking');
+}
+
+function removeThinking() {
+  if (thinkingBubble && thinkingBubble.parentElement) {
+    thinkingBubble.parentElement.remove();
+  }
+  thinkingBubble = null;
+}
+
 // ─── Message handlers ─────────────────────────────────────────────────────────
-function handleHistory(data) {
-  if (data && term) term.write(data);
+function handleStart() {
+  showThinking();
 }
 
-function handleOutput(data) {
-  if (term) term.write(data);
+function handleChunk(data) {
+  if (!data) return;
+  if (thinkingBubble) {
+    removeThinking();
+    currentClaudeBubble = createBubble('claude');
+  }
+  if (!currentClaudeBubble) currentClaudeBubble = createBubble('claude');
+  currentClaudeBubble.textContent += data;
+  scrollToBottom();
 }
 
-function handleExit(code) {
-  if (term) term.writeln(`\r\n\x1b[33m[Session ended (exit ${code})]\x1b[0m`);
-  setStatus('disconnected');
+function handleDone() {
+  removeThinking();
+  currentClaudeBubble = null;
+  setStatus('connected');
+  sendBtn.disabled = false;
+}
+
+function handleError(message) {
+  removeThinking();
+  currentClaudeBubble = null;
+  const bubble = createBubble('system');
+  bubble.textContent = `Error: ${message}`;
+  setStatus('connected');
+  sendBtn.disabled = false;
+}
+
+function handleCancelled() {
+  removeThinking();
+  currentClaudeBubble = null;
+  const bubble = createBubble('system');
+  bubble.textContent = 'Cancelled';
+  setStatus('connected');
+  sendBtn.disabled = false;
 }
 
 // ─── WebSocket ────────────────────────────────────────────────────────────────
-function sendResize() {
-  if (ws && ws.readyState === WebSocket.OPEN && term) {
-    ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
-  }
-}
-
 function connect() {
   if (ws) {
     ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null;
@@ -128,17 +167,16 @@ function connect() {
 
   ws = new WebSocket(`ws://${device.ip}:${port}/?token=${encodeURIComponent(token)}`);
 
-  ws.onopen = () => {
-    setStatus('connected');
-    sendResize();
-  };
+  ws.onopen = () => setStatus('connected');
 
   ws.onmessage = (event) => {
     try {
       const msg = JSON.parse(event.data);
-      if      (msg.type === 'history') handleHistory(msg.data);
-      else if (msg.type === 'output')  handleOutput(msg.data);
-      else if (msg.type === 'exit')    handleExit(msg.code);
+      if      (msg.type === 'start')     handleStart();
+      else if (msg.type === 'chunk')     handleChunk(msg.data);
+      else if (msg.type === 'done')      handleDone();
+      else if (msg.type === 'error')     handleError(msg.message);
+      else if (msg.type === 'cancelled') handleCancelled();
     } catch { /* ignore */ }
   };
 
@@ -152,7 +190,13 @@ function connect() {
 
 function sendInput(text) {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
-  ws.send(JSON.stringify({ type: 'input', data: text + '\r' }));
+  const bubble = createBubble('user');
+  bubble.textContent = text;
+  currentClaudeBubble = null;
+  isUserScrolling = false;
+  sendBtn.disabled = true;
+  scrollToBottom();
+  ws.send(JSON.stringify({ type: 'input', data: text }));
 }
 
 // ─── Input ────────────────────────────────────────────────────────────────────
@@ -206,7 +250,10 @@ function renderDeviceList() {
       activeIndex = i;
       saveState();
       modal.classList.add('hidden');
-      if (term) term.reset();
+      chat.innerHTML = '';
+      currentClaudeBubble = null;
+      thinkingBubble = null;
+      sendBtn.disabled = false;
       connect();
     });
     deviceList.appendChild(li);
@@ -240,7 +287,10 @@ addForm.addEventListener('submit', async (e) => {
   addIpEl.value = '';
   addNameEl.value = '';
   modal.classList.add('hidden');
-  if (term) term.reset();
+  chat.innerHTML = '';
+  currentClaudeBubble = null;
+  thinkingBubble = null;
+  sendBtn.disabled = false;
   connect();
 });
 
@@ -251,8 +301,6 @@ activeIndex = Math.min(
   parseInt(localStorage.getItem(ACTIVE_IDX_KEY) || '0', 10),
   Math.max(0, devices.length - 1)
 );
-
-initTerminal();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
