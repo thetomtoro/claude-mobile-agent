@@ -1,9 +1,35 @@
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
 const SESSION_FILE = path.join(__dirname, '.phone-session-id');
+
+function listFilesystemRoots() {
+  if (process.platform !== 'win32') return ['/'];
+  try {
+    const out = execSync('wmic logicaldisk get caption', { encoding: 'utf8' });
+    return out
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => /^[A-Z]:$/.test(l))
+      .map((l) => l + '\\');
+  } catch {
+    return ['C:\\'];
+  }
+}
+
+function buildAddDirArgs(workingDirectory) {
+  const roots = listFilesystemRoots();
+  const cwdRoot = path.parse(path.resolve(workingDirectory)).root.toUpperCase();
+  const args = [];
+  for (const root of roots) {
+    if (root.toUpperCase() !== cwdRoot) {
+      args.push('--add-dir', root);
+    }
+  }
+  return args;
+}
 
 function loadOrCreateSessionId() {
   try {
@@ -21,10 +47,15 @@ class ClaudeRunner {
     this.config = {
       workingDirectory: config.workingDirectory || process.cwd(),
     };
+    this._addDirArgs = buildAddDirArgs(this.config.workingDirectory);
     this._sessionId = loadOrCreateSessionId();
     this._hasStarted = false;
     this._current = null;
     console.log(`[claude] phone session id: ${this._sessionId}`);
+    if (this._addDirArgs.length) {
+      const dirs = this._addDirArgs.filter((a) => a !== '--add-dir').join(', ');
+      console.log(`[claude] extra accessible roots: ${dirs}`);
+    }
   }
 
   isBusy() {
@@ -58,7 +89,7 @@ class ClaudeRunner {
     }
 
     const isWin = process.platform === 'win32';
-    const claudeArgs = ['-p', prompt];
+    const claudeArgs = ['-p', prompt, ...this._addDirArgs];
     if (this._hasStarted) {
       claudeArgs.push('--resume', this._sessionId);
     } else {
