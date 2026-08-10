@@ -18,17 +18,17 @@ the reply, keep going.
 
 ## What you get
 
-- **Full Claude Code on your phone** — runs the real `claude` CLI on your PC with
+- **Full Claude Code on your phone** - runs the real `claude` CLI on your PC with
   access to your projects and files.
-- **Installable iOS app** — "Add to Home Screen" gives you a standalone app, no
+- **Installable iOS app** - "Add to Home Screen" gives you a standalone app, no
   App Store needed.
-- **Push notifications** — get pinged via [ntfy.sh](https://ntfy.sh) when Claude
+- **Push notifications** - get pinged via [ntfy.sh](https://ntfy.sh) when Claude
   finishes (so you can put your phone down while it works).
-- **Session browser** — resume any past Claude Code conversation from your phone,
+- **Session browser** - resume any past Claude Code conversation from your phone,
   or start a fresh one.
-- **Multi-device** — save several PCs (by Tailscale IP) and switch between them
+- **Multi-device** - save several PCs (by Tailscale IP) and switch between them
   from the app.
-- **Private by default** — traffic stays on your Tailscale network; access is
+- **Private by default** - traffic stays on your Tailscale network; access is
   gated by a shared token.
 
 ---
@@ -39,18 +39,18 @@ Before you start, install these on the **PC that will run the agent** (the
 machine where your code lives):
 
 1. **[Node.js](https://nodejs.org)** 18 or newer.
-2. **[Claude Code CLI](https://claude.com/claude-code)** — installed and logged
+2. **[Claude Code CLI](https://claude.com/claude-code)** - installed and logged
    in. Verify with:
    ```sh
    claude --version
    ```
    The agent shells out to this `claude` binary, so it must be on your `PATH` and
    already authenticated.
-3. **[Tailscale](https://tailscale.com)** — installed on *both* the PC and your
+3. **[Tailscale](https://tailscale.com)** - installed on *both* the PC and your
    phone, signed into the same tailnet. This is how your phone reaches the PC
    securely without exposing anything to the public internet. Free for personal
    use.
-4. An **[ntfy.sh](https://ntfy.sh) topic** — just make up a unique, hard-to-guess
+4. An **[ntfy.sh](https://ntfy.sh) topic** - just make up a unique, hard-to-guess
    string (e.g. `myname-claude-7fa2c9`). No signup required. You'll install the
    ntfy app on your phone and subscribe to this topic to receive notifications.
 
@@ -96,7 +96,7 @@ Then edit `config.json`:
 |---------------------|-------------------------------------------------------------------------------|
 | `name`              | Display name shown in the app header.                                         |
 | `port`              | Port the agent listens on. `3000` is fine.                                    |
-| `token`             | **Shared secret.** Generate something long and random — this is your only auth. |
+| `token`             | **Shared secret.** Generate something long and random - this is your only auth. |
 | `ntfyTopic`         | Your ntfy.sh topic for push notifications. Keep it secret-ish.                |
 | `idleThresholdMs`   | Reserved for output-batching tuning.                                          |
 | `outputBufferLines` | Reserved for output-buffer tuning.                                            |
@@ -151,11 +151,11 @@ Claude finishes responding.
 
 ## Using the app
 
-- **Type a message** and send — it runs as a prompt in Claude Code on your PC.
-- **☰ (Sessions)** — browse and resume any past Claude Code conversation on that
+- **Type a message** and send - it runs as a prompt in Claude Code on your PC.
+- **☰ (Sessions)** - browse and resume any past Claude Code conversation on that
   machine, or pick up where you left off.
-- **＋ (New chat)** — start a fresh session.
-- **Device button** (top-left) — add and switch between multiple PCs by Tailscale
+- **＋ (New chat)** - start a fresh session.
+- **Device button** (top-left) - add and switch between multiple PCs by Tailscale
   IP, so one app can drive several machines.
 
 The phone uses its **own dedicated Claude Code session** (`.phone-session-id`),
@@ -164,7 +164,7 @@ on each other.
 
 ---
 
-## Security — please read
+## Security - please read
 
 This tool is designed to run **only over Tailscale**, not the public internet.
 Understand what it does:
@@ -201,16 +201,16 @@ phone like a key to your computer.
 
 ## Troubleshooting
 
-- **"claude: command not found" / agent errors on send** — the `claude` CLI isn't
+- **"claude: command not found" / agent errors on send** - the `claude` CLI isn't
   on `PATH` or isn't logged in. Run `claude --version` and `claude` in a terminal
   from the same account first.
-- **Phone can't connect** — confirm both devices show as connected in Tailscale,
+- **Phone can't connect** - confirm both devices show as connected in Tailscale,
   and you're using the `100.x.x.x` Tailscale IP (not `localhost`). Check the PC
   firewall allows inbound on your `port`.
-- **401 Unauthorized** — token in the URL/app doesn't match `config.json`.
-- **No notifications** — make sure the ntfy app is subscribed to the exact
+- **401 Unauthorized** - token in the URL/app doesn't match `config.json`.
+- **No notifications** - make sure the ntfy app is subscribed to the exact
   `ntfyTopic` string, and that the PC has outbound internet to `ntfy.sh`.
-- **Session list is empty** — you have no prior Claude Code conversations in
+- **Session list is empty** - you have no prior Claude Code conversations in
   `~/.claude/projects` yet. Start a chat first.
 
 ---
@@ -219,7 +219,7 @@ phone like a key to your computer.
 
 If you're cloning this to run on your own PC (not Tommy's):
 
-- Replace **every** value in `config.json` with your own — especially `token` and
+- Replace **every** value in `config.json` with your own - especially `token` and
   `ntfyTopic`. The example file ships with placeholder values; don't reuse them.
 - Set `workingDirectory` to your own project path (remember `\\` on Windows).
 - The session browser reads from **your** `~/.claude/projects`, so it'll show
